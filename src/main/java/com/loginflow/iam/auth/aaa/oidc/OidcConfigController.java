@@ -5,7 +5,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/config/oidc") // Admin Config Path
-@CrossOrigin(origins = "http://localhost:4200", exposedHeaders = "X-IAM-SESSION-ID")
 public class OidcConfigController {
 
     @Autowired

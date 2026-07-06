@@ -1,6 +1,7 @@
 package com.loginflow.iam.webAuthenticationRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
@@ -20,12 +21,14 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Map;
-import java.util.Optional; 
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/public/oidc")
-@CrossOrigin(origins = "http://localhost:4200")
 public class OidcPublicController {
+
+	@Value("${iam.frontend.url}")
+	private String frontendUrl;
 
 	@Autowired
 	private OidcConfigurationRepository configRepository;
@@ -98,11 +101,11 @@ public class OidcPublicController {
 
 				// 2. SECURITY GATE: Check if user exists and is blocked FIRST
 				Optional<User> existingUserOpt = userRepository.findByUsername(finalEmail);
-				
+
 				if (existingUserOpt.isPresent() && Boolean.TRUE.equals(existingUserOpt.get().isBlocked())) {
 					System.out.println("[IAM ALERT] Blocked user attempted OIDC federation: " + finalEmail);
 					// Bounce them immediately back to Angular with a specific error code
-					response.sendRedirect("http://localhost:4200/login?error=ACCOUNT_BLOCKED");
+					response.sendRedirect(frontendUrl + "/login?error=ACCOUNT_BLOCKED");
 					return; // HALT EXECUTION HERE
 				}
 
@@ -129,13 +132,13 @@ public class OidcPublicController {
 				sessionRepository.save(newSession);
 
 				// 6. Redirect back to Angular seamlessly
-				response.sendRedirect("http://localhost:4200/login?token=" + internalJwt);
+				response.sendRedirect(frontendUrl + "/login?token=" + internalJwt);
 			} else {
-				response.sendRedirect("http://localhost:4200/login?error=OIDC_FAILED");
+				response.sendRedirect(frontendUrl + "/login?error=OIDC_FAILED");
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			response.sendRedirect("http://localhost:4200/login?error=GOOGLE_REJECTED");
+			response.sendRedirect(frontendUrl + "/login?error=GOOGLE_REJECTED");
 		}
 	}
 }

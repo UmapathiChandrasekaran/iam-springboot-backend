@@ -3,6 +3,7 @@ package com.loginflow.iam.config;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -21,6 +22,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+	
+	@Value("${iam.cors.allowed-origins}")
+    private List<String> allowedOrigins;
 
 	private final SessionAuthFilter sessionAuthFilter;
 
@@ -34,6 +38,7 @@ public class SecurityConfig {
 		http
 				// Disable default features we don't need for programmatic REST APIs
 				.cors(cors -> cors.configurationSource(corsConfigurationSource())).csrf(csrf -> csrf.disable())
+				
 				.formLogin(form -> form.disable()).httpBasic(basic -> basic.disable())
 
 				// Force the application to be completely stateless (no tracking cookies)
@@ -80,7 +85,7 @@ public class SecurityConfig {
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
-		configuration.setAllowedOrigins(List.of("http://localhost:4200")); // Trusted Angular Port
+		configuration.setAllowedOrigins(allowedOrigins); // Trusted Angular Port
 		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 		configuration.setAllowedHeaders(List.of("Content-Type", "X-IAM-SESSION-ID"));
 		configuration.setExposedHeaders(List.of("X-IAM-SESSION-ID")); // Allows UI layer to extract token

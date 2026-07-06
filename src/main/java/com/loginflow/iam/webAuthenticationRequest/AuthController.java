@@ -26,7 +26,6 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = { "http://localhost:4200" }, exposedHeaders = "X-IAM-SESSION-ID")
 public class AuthController {
 
 	private final UserService userService;
