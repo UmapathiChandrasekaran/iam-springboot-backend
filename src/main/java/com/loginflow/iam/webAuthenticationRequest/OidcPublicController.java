@@ -30,6 +30,9 @@ public class OidcPublicController {
 	@Value("${iam.frontend.url}")
 	private String frontendUrl;
 
+	@Value("${iam.backend.url}")
+	private String BackendUrl;
+
 	@Autowired
 	private OidcConfigurationRepository configRepository;
 
@@ -57,9 +60,9 @@ public class OidcPublicController {
 			baseUrl = baseUrl + "/o/oauth2/v2/auth";
 		}
 
-		String url = baseUrl + "?client_id=" + config.getOidcClientId()
-				+ "&redirect_uri=http://localhost:8080/api/public/oidc/callback" + "&response_type=code"
-				+ "&scope=openid profile email" + "&prompt=select_account";
+		String url = baseUrl + "?client_id=" + config.getOidcClientId() + "&redirect_uri=" + BackendUrl
+				+ "/api/public/oidc/callback" + "&response_type=code" + "&scope=openid profile email"
+				+ "&prompt=select_account";
 
 		return ResponseEntity.ok(Map.of("url", url));
 	}
@@ -73,7 +76,7 @@ public class OidcPublicController {
 		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
 		String requestBody = "code=" + code + "&client_id=" + config.getOidcClientId() + "&client_secret="
-				+ config.getOidcClientSecret() + "&redirect_uri=http://localhost:8080/api/public/oidc/callback"
+				+ config.getOidcClientSecret() + "&redirect_uri=" + BackendUrl + "/api/public/oidc/callback"
 				+ "&grant_type=authorization_code";
 
 		HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
