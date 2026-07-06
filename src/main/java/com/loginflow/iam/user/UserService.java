@@ -114,18 +114,32 @@ public class UserService {
 		User targetUser = userRepository.findById(targetUserId)
 				.orElseThrow(() -> new IllegalArgumentException("Target user identity not found."));
 
-		// 2. Protect Admin Profiles: Admins are completely immune to suspension
-		// policies
-		if ("ADMIN".equalsIgnoreCase(targetUser.getUserType())) {
-			throw new SecurityException(
-					"Access Denied: Core administrative system privileges cannot be blocked or suspended.");
-		}
-
-		// 3. Prevent Self-Block: Capture current caller context username
+		// 2. Prevent Self-Block: Capture current caller context username
 		String currentActorUsername = getCurrentContextUsername();
 		if (targetUser.getUsername().equals(currentActorUsername)) {
 			throw new SecurityException(
 					"Access Denied: Operational security parameters prohibit users from blocking their own connection node.");
+		}
+
+		// 3. Hierarchical Admin Protection: Distinguish Root Admin from Normal Admins
+		if ("ADMIN".equalsIgnoreCase(targetUser.getUserType())) {
+
+			// Define your ultimate root account username here
+			final String ROOT_ADMIN_USERNAME = "admin"; 
+
+			// Rule A: The absolute Root Admin can NEVER be blocked by anyone.
+			if (targetUser.getUsername().equalsIgnoreCase(ROOT_ADMIN_USERNAME)) {
+				throw new SecurityException(
+						"Access Denied: Core Root Administrative system privileges cannot be blocked or suspended.");
+			}
+
+			// Rule B: If the target is a normal Admin, only the Root Admin is authorized to
+			// block them.
+			// If the caller is anyone else, reject the request.
+			if (!currentActorUsername.equalsIgnoreCase(ROOT_ADMIN_USERNAME)) {
+				throw new SecurityException(
+						"Access Denied: Insufficient clearance. Only the Root Administrator can suspend other Admin accounts.");
+			}
 		}
 
 		// Everything passes clear, commit suspension flag modification data onto
@@ -174,14 +188,14 @@ public class UserService {
 		boolean actorIsAdmin = authentication.getAuthorities().stream()
 				.anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
 
-		//  REFACTORED IMMUTABILITY GATE: Only the bootstrap master 'admin' username
+		// REFACTORED IMMUTABILITY GATE: Only the bootstrap master 'admin' username
 		// is fundamentally immutable against edits
 		if ("admin".equalsIgnoreCase(existingUser.getUsername())) {
 			throw new SecurityException(
 					"Access Denied: Administrative identities are strictly protected and completely immutable against editing updates.");
 		}
 
-		//  REFACTORED MULTI-ADMIN ISOLATION GUARD: If editing a secondary admin
+		// REFACTORED MULTI-ADMIN ISOLATION GUARD: If editing a secondary admin
 		// account, ensure requester clearance is the original root 'admin'
 		if ("ADMIN".equalsIgnoreCase(existingUser.getUserType()) && !"admin".equalsIgnoreCase(requesterUsername)
 				&& !existingUser.getUsername().equalsIgnoreCase(requesterUsername)) {
@@ -216,12 +230,27 @@ public class UserService {
 	public void deleteUser(Long targetUserId) {
 		User targetUser = userRepository.findById(targetUserId).orElseThrow(() -> new IllegalArgumentException(
 				"Target user identity not found. Cannot delete non-existent record."));
+		String currentActorUsername = getCurrentContextUsername();
 
-		//  IMMUTABLE ROOT PROTECTION: ADMIN entries cannot be deleted by anyone
-		// (including other Admins)
+		// Admin Protection: Distinguish Root Admin from Normal Admins
 		if ("ADMIN".equalsIgnoreCase(targetUser.getUserType())) {
-			throw new SecurityException(
-					"Access Denied: Core administrative system configurations are completely immutable and cannot be removed.");
+
+			// Define your ultimate root account username here
+			final String ROOT_ADMIN_USERNAME = "admin"; 
+
+			// Rule A: The absolute Root Admin can NEVER be blocked by anyone.
+			if (targetUser.getUsername().equalsIgnoreCase(ROOT_ADMIN_USERNAME)) {
+				throw new SecurityException(
+						"Access Denied: Core Root Administrative system privileges cannot be wiped.");
+			}
+
+			// Rule B: If the target is a normal Admin, only the Root Admin is authorized to
+			// block them.
+			// If the caller is anyone else, reject the request.
+			if (!currentActorUsername.equalsIgnoreCase(ROOT_ADMIN_USERNAME)) {
+				throw new SecurityException(
+						"Access Denied: Insufficient clearance. Only the Root Administrator can wipe other Admin accounts.");
+			}
 		}
 
 		// Identify the active execution actor context token profiles parameters
@@ -232,13 +261,6 @@ public class UserService {
 
 		boolean actorIsAdmin = authentication.getAuthorities().stream()
 				.anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
-
-		// Rule 1: A normal user is only permitted to remove their own signature record
-		// node
-		if (!actorIsAdmin && !targetUser.getUsername().equals(authentication.getName())) {
-			throw new SecurityException(
-					"Access Denied: Standard credentials only permit self-deletion routines on system networks.");
-		}
 
 		// 1. Wipe out active tracking sessions across connected client layout spaces
 		// first
@@ -280,10 +302,10 @@ public class UserService {
 		}
 
 		User user = userRepository.findByUsername(username).orElseThrow(() -> new RuntimeException("User not found"));
-		
+
 		if (Boolean.TRUE.equals(user.isExternalUser())) {
-            throw new SecurityException("[IAM POLICY] Federated users cannot modify local credentials.");
-        }
+			throw new SecurityException("[IAM POLICY] Federated users cannot modify local credentials.");
+		}
 
 		// 2. Verify current password matches the stored cryptographic hash
 		if (!passwordService.verify(request.getCurrentPassword(), user.getPassword())) {
@@ -299,10 +321,10 @@ public class UserService {
 	public boolean verifyAndActivateMfa(String username, int code) {
 		User user = userRepository.findByUsername(username)
 				.orElseThrow(() -> new RuntimeException("Identity profile not found"));
-		
+
 		if (Boolean.TRUE.equals(user.isExternalUser())) {
-            throw new SecurityException("[IAM POLICY] Federated users cannot modify local credentials.");
-        }
+			throw new SecurityException("[IAM POLICY] Federated users cannot modify local credentials.");
+		}
 
 		if (totpEngine.verifyCode(user.getTotpSecret(), code)) {
 			user.setTotpEnabled(true);
@@ -314,7 +336,7 @@ public class UserService {
 
 	@Transactional
 	public MfaSetupResponse generateMfaSetup(String username) {
-		
+
 		// HARD CONSTRAINT: Immutable Root Protection Gate
 		if ("admin".equalsIgnoreCase(username)) {
 			throw new SecurityException("ROOT_ADMIN_MFA_PROHIBITED");
@@ -373,11 +395,10 @@ public class UserService {
 		user.setPassword(passwordService.hash(newPassword));
 		userRepository.save(user);
 	}
-	
+
 	@Transactional
 	public String createMfaSession(String username, String ipAddress) {
-		User user = userRepository.findByUsername(username)
-				.orElseThrow(() -> new RuntimeException("User not found"));
+		User user = userRepository.findByUsername(username).orElseThrow(() -> new RuntimeException("User not found"));
 
 		// Generate the token and officially save it to PostgreSQL
 		String randomToken = jwtUtils.generateToken(user.getUsername(), user.getUserType());
