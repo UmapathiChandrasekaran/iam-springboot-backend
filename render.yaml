@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: iam-enterprise-api
+    env: java
+    plan: free
+    buildCommand: chmod +x mvnw && ./mvnw clean package -DskipTests
+    startCommand: java -jar target/iam-0.0.1-SNAPSHOT.jar
+    envVars:
+      - key: JAVA_VERSION
+        value: 21
