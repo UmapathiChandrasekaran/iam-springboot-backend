@@ -106,7 +106,7 @@ public class OidcAuthenticatorEngine implements Authenticator {
 	private void provisionUserIfNeeded(String email) {
 		Optional<User> existingUser;
 		try {
-			existingUser = userRepository.findByUsername(email);
+			existingUser = userRepository.findByUsernameIgnoreCase(email);
 
 			if (existingUser.isEmpty()) {
 				System.out.println("[OIDC ENGINE] JIT PROVISIONING: Creating new local account for " + email);

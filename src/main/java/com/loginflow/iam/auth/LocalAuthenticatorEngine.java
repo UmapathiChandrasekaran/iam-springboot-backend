@@ -19,7 +19,7 @@ public class LocalAuthenticatorEngine implements Authenticator {
 	@Override
 	public boolean authenticate(String username, String inboundSecret) { 
 		// 1. Fetch user locally
-		User user = userRepository.findByUsername(username).orElse(null);
+		User user = userRepository.findByUsernameIgnoreCase(username).orElse(null);
 
 		// 2. Block if they don't exist locally, or if inputs are blank
 		if (user == null || inboundSecret == null || inboundSecret.isBlank()) {

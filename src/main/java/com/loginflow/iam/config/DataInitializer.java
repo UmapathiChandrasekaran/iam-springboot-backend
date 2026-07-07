@@ -14,7 +14,7 @@ public class DataInitializer {
 	CommandLineRunner initDatabase(UserRepository userRepository, PasswordService passwordService) {
 		return args -> {
 			// Check if Admin exists
-			if (userRepository.findByUsername("admin").isEmpty()) {
+			if (userRepository.findByUsernameIgnoreCase("admin").isEmpty()) {
 				User admin = new User();
 				admin.setUsername("admin");
 				// Hashing the password using your secure PasswordService adapter

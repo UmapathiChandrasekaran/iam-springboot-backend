@@ -103,7 +103,7 @@ public class OidcPublicController {
 				final String finalEmail = email;
 
 				// 2. SECURITY GATE: Check if user exists and is blocked FIRST
-				Optional<User> existingUserOpt = userRepository.findByUsername(finalEmail);
+				Optional<User> existingUserOpt = userRepository.findByUsernameIgnoreCase(finalEmail);
 
 				if (existingUserOpt.isPresent() && Boolean.TRUE.equals(existingUserOpt.get().isBlocked())) {
 					System.out.println("[IAM ALERT] Blocked user attempted OIDC federation: " + finalEmail);

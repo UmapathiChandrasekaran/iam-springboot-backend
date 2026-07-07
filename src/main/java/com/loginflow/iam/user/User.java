@@ -40,13 +40,11 @@ public class User {
 	@Column(name = "totp_secret", nullable = true)
 	private String totpSecret;
 
-
 	@Column(name = "is_totp_enabled", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
 	private Boolean isTotpEnabled = false;
-	
 
-    @Column(name = "is_external_user")
-    private Boolean externalUser = false; 
+	@Column(name = "is_external_user")
+	private Boolean externalUser = false;
 
 	@PrePersist
 	protected void onCreate() {
@@ -80,7 +78,11 @@ public class User {
 	}
 
 	public void setUsername(String username) {
-		this.username = username;
+		if (username != null) {
+			this.username = username.toLowerCase().trim();
+		} else {
+			this.username = null;
+		}
 	}
 
 	public String getPassword() {
@@ -130,13 +132,13 @@ public class User {
 	public void setTotpEnabled(Boolean totpEnabled) {
 		this.isTotpEnabled = totpEnabled;
 	}
-	
-    public Boolean isExternalUser() {
-        return externalUser;
-    }
 
-    public void setExternalUser(Boolean externalUser) {
-        this.externalUser = externalUser;
-    }
+	public Boolean isExternalUser() {
+		return externalUser;
+	}
+
+	public void setExternalUser(Boolean externalUser) {
+		this.externalUser = externalUser;
+	}
 
 }

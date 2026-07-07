@@ -54,7 +54,7 @@ public class AuthController {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials provided.");
 		}
 
-		User user = userRepository.findByUsername(username).orElse(null);
+		User user = userRepository.findByUsernameIgnoreCase(username).orElse(null);
 
 		if (user == null) {
 			System.out.println("[JIT PROVISIONING] External LDAP User detected. Creating local profile for: " + username);
@@ -109,7 +109,7 @@ public class AuthController {
 				return ResponseEntity.badRequest().body("MISSING_CHALLENGE_PARAMETERS");
 			}
 
-			User user = userRepository.findByUsername(username)
+			User user = userRepository.findByUsernameIgnoreCase(username)
 					.orElseThrow(() -> new RuntimeException("Identity context profile has expired."));
 
 			try {
