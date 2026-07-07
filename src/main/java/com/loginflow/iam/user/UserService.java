@@ -125,7 +125,7 @@ public class UserService {
 		if ("ADMIN".equalsIgnoreCase(targetUser.getUserType())) {
 
 			// Define your ultimate root account username here
-			final String ROOT_ADMIN_USERNAME = "admin"; 
+			final String ROOT_ADMIN_USERNAME = "admin";
 
 			// Rule A: The absolute Root Admin can NEVER be blocked by anyone.
 			if (targetUser.getUsername().equalsIgnoreCase(ROOT_ADMIN_USERNAME)) {
@@ -174,11 +174,9 @@ public class UserService {
 			throw new IllegalArgumentException("Invalid user modifications: Missing target record identifier.");
 		}
 
-		// Retrieve the live historical node from the database store context
 		User existingUser = userRepository.findById(modifiedUserPayload.getId()).orElseThrow(
 				() -> new IllegalArgumentException("The user record you are trying to modify does not exist."));
 
-		// Identify the active caller through Spring Security context
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (authentication == null) {
 			throw new SecurityException("Access Denied: Missing session validation context tokens.");
@@ -187,52 +185,44 @@ public class UserService {
 		String currentActorUsername = authentication.getName();
 		boolean actorIsAdmin = authentication.getAuthorities().stream()
 				.anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals("ROLE_ADMIN"));
+		boolean actorIsRoot = "admin".equalsIgnoreCase(currentActorUsername);
 
-		final String ROOT_ADMIN_USERNAME = "admin";
-
-
-		// RULE 1: Root Admin Immutability
-		// Nobody, not even the Root Admin themselves via the UI, can modify the core root account.
-		if (existingUser.getUsername().equalsIgnoreCase(ROOT_ADMIN_USERNAME)) {
+		// RULE 1: Root admin is untouched. No one can do anything to them, even
+		// themselves.
+		if ("admin".equalsIgnoreCase(existingUser.getUsername())) {
 			throw new SecurityException(
-					"Access Denied: Administrative root identities are strictly protected and completely immutable against editing updates.");
+					"Access Denied : The Root Admin is untouched. No modifications allowed.");
 		}
 
-		// RULE 2: Hierarchical Admin Protection (Self-Edit & Peer-Edit Guard)
-		// If the account being edited is an ADMIN, ONLY the Root Admin is allowed to touch it.
-		// This instantly prevents Normal Admins from editing themselves or other Admins.
-		if ("ADMIN".equalsIgnoreCase(existingUser.getUserType())) {
-			if (!currentActorUsername.equalsIgnoreCase(ROOT_ADMIN_USERNAME)) {
+		if (actorIsAdmin) {
+			// RULE 3 & 4: Normal Admin Logic
+			if (!actorIsRoot) {
+				// RULE 3: An admin user cannot modify their own profile.
+				if (existingUser.getUsername().equalsIgnoreCase(currentActorUsername)) {
+					throw new SecurityException(
+							"Access Denied: Normal admins cannot modify their own profile. Contact Root.");
+				}
+				// RULE 4 is implicitly allowed here: Normal admins CAN modify other normal
+				// admins and normal users.
+			}
+			// RULE 2 is implicitly allowed here: Root admin bypasses the self-edit block
+			// and has all permissions.
+		} else {
+			// RULE 5a: Normal users can modify themselves...
+			if (!existingUser.getUsername().equalsIgnoreCase(currentActorUsername)) {
 				throw new SecurityException(
-						"Access Denied: Insufficient clearance. Only the Root Administrator can modify existing Admin accounts.");
+						"Access Denied : Standard users can only modify their own profile.");
 			}
 		}
 
-		// RULE 3: Privilege Escalation Protection
-		// Prevent a Normal Admin from promoting a standard USER into an ADMIN.
-		// Only Root can crown new Admins.
-		if ("ADMIN".equalsIgnoreCase(modifiedUserPayload.getUserType())) {
-			if (!currentActorUsername.equalsIgnoreCase(ROOT_ADMIN_USERNAME)) {
-				throw new SecurityException(
-						"Access Denied: Insufficient clearance. Only the Root Administrator can promote a standard user to the ADMIN role.");
-			}
-		}
-
-
-		// RULE 4: A normal USER can only modify their own profile node record
-		if (!actorIsAdmin && !existingUser.getUsername().equals(currentActorUsername)) {
-			throw new SecurityException(
-					"Access Denied: Standard validation clearances only permit own account adjustments.");
-		}
-
-		// Write modified parameters onto historical context
+		// Apply the username changes
 		existingUser.setUsername(modifiedUserPayload.getUsername());
 
-		// Apply role changes securely
+		// RULE 5b: ...but normal users cannot modify their role.
 		if (actorIsAdmin) {
 			existingUser.setUserType(modifiedUserPayload.getUserType());
 		} else {
-			// Force role to remain USER if a standard user tries to hack the JSON payload
+			// Force the role to stay "USER" if a standard user tries to hack the payload
 			existingUser.setUserType("USER");
 		}
 
@@ -249,7 +239,7 @@ public class UserService {
 		if ("ADMIN".equalsIgnoreCase(targetUser.getUserType())) {
 
 			// Define your ultimate root account username here
-			final String ROOT_ADMIN_USERNAME = "admin"; 
+			final String ROOT_ADMIN_USERNAME = "admin";
 
 			// Rule A: The absolute Root Admin can NEVER be blocked by anyone.
 			if (targetUser.getUsername().equalsIgnoreCase(ROOT_ADMIN_USERNAME)) {
@@ -314,7 +304,8 @@ public class UserService {
 			throw new SecurityException("ROOT_ADMIN_PROTECTED_TASK_DENIED");
 		}
 
-		User user = userRepository.findByUsernameIgnoreCase(username).orElseThrow(() -> new RuntimeException("User not found"));
+		User user = userRepository.findByUsernameIgnoreCase(username)
+				.orElseThrow(() -> new RuntimeException("User not found"));
 
 		if (Boolean.TRUE.equals(user.isExternalUser())) {
 			throw new SecurityException("[IAM POLICY] Federated users cannot modify local credentials.");
@@ -389,7 +380,8 @@ public class UserService {
 
 	@Transactional
 	public void administrativeForcePassword(String targetUsername, String newPassword, String requester) {
-		if (!"ADMIN".equalsIgnoreCase(userRepository.findByUsernameIgnoreCase(requester).map(User::getUserType).orElse(""))) {
+		if (!"ADMIN".equalsIgnoreCase(
+				userRepository.findByUsernameIgnoreCase(requester).map(User::getUserType).orElse(""))) {
 			throw new SecurityException("UNAUTHORIZED_ADMIN_ACTION");
 		}
 
@@ -411,7 +403,8 @@ public class UserService {
 
 	@Transactional
 	public String createMfaSession(String username, String ipAddress) {
-		User user = userRepository.findByUsernameIgnoreCase(username).orElseThrow(() -> new RuntimeException("User not found"));
+		User user = userRepository.findByUsernameIgnoreCase(username)
+				.orElseThrow(() -> new RuntimeException("User not found"));
 
 		// Generate the token and officially save it to PostgreSQL
 		String randomToken = jwtUtils.generateToken(user.getUsername(), user.getUserType());
